@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { sendMessage, getLogs } from "./services/chat.service";
+import { sendMessage, getLogs } from "./service/chat.service";
+
 
 export default function App() {
   const [query, setQuery] = useState("");

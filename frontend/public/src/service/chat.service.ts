@@ -1,5 +1,6 @@
 import axios from "axios";
-import type { ChatResponse } from "../types";
+import type { ChatResponse } from "../types.index";
+
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
