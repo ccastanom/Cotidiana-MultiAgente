@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { ChatResponse as ChatResponseBase } from "../types.index";
+import type { ChatResponse as ChatResponseBase } from "../../types.index";
 
 // Extendemos para tolerar los nuevos campos opcionales
 type ChatResponse = ChatResponseBase & {
