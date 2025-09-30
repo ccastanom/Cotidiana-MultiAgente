@@ -1,10 +1,11 @@
-# backend/app/main.py (fragmento)
+# backend/app/main.py
 import time, re
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .models import ChatRequest, ChatResponse, Flags
 import re
 from urllib.parse import quote
+from .agents import agente_buscar, agente_analizar, agente_redactar  # ← NUEVO
 
 app = FastAPI(
     title="Cotidiana API",
@@ -20,7 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Utilidades muy simples (placeholder) ---
+# --- Utilidades ---
 def detect_pii(q: str) -> bool:
     # demo simple: emails y teléfonos de 7-10 dígitos
     return bool(re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", q) or
@@ -28,43 +29,28 @@ def detect_pii(q: str) -> bool:
 
 def safe_answer(q: str) -> str:
     """
-    Aquí conectas tu pipeline real (multiagente).
-    Este demo solo devuelve el texto “tal cual” + un tip básico.
-    IMPORTANTE: mantén tus guardrails para rechazar contenido ilegal/dañino.
+    Usa tu pipeline multiagente sin tocar su lógica:
+    Buscar -> Analizar -> Redactar
     """
-    # Ejemplo de bloqueo mínimo (NO ampliar sobre cosas peligrosas)
+    # Guardrail mínimo (no ampliar sobre cosas peligrosas)
     dangerous = ["bomba", "veneno", "sabotear", "dañar", "ilegal"]
     if any(w in q.lower() for w in dangerous):
         return ("No puedo ayudar con actividades peligrosas o ilegales. "
                 "Formula otra consulta segura y responsable.")
 
-    # Sin límite de palabras: devuelve respuesta amplia
-    return f"Respuesta generada sobre: {q}. (Ejemplo demo; integra aquí tu lógica multiagente)."
+    # Pipeline multiagente (tu lógica ya existente en backend/app/agents.py)
+    tema, texto = agente_buscar(q)
+    idea = agente_analizar(texto)
+    return agente_redactar(q, idea, tema)
 
 def pick_image_url(q: str) -> str:
     """
     Genera una URL de imagen alusiva usando **toda la frase**.
-    - No limitamos la cantidad de palabras.
-    - Sanitizamos solo para compatibilidad de URL.
-    - Pasamos la frase completa a Unsplash Source.
-    - Fallback a Picsum si quisieras (descomenta la última línea).
     """
-    # 1) Normaliza espacios y quita solo caracteres que rompen URL (sin perder significado)
-    #    NOTA: no truncamos la frase; preservamos su semántica completa.
     clean = re.sub(r"\s+", " ", q.strip())
-    # 2) Unsplash funciona mejor con separadores de coma. Reemplazamos espacios por comas.
     tags = clean.replace(" ", ",")
-    # 3) Codificamos la frase entera
-    encoded = quote(tags, safe=",")  # comas sin codificar; resto URL-encoded
-
-    # Unsplash Source con tamaño fijo (mejor para Streamlit)
+    encoded = quote(tags, safe=",")
     return f"https://source.unsplash.com/800x450/?{encoded}"
-
-    # Si prefieres un fallback que siempre devuelve algo (aunque no sea semántico):
-    # from urllib.parse import quote_plus
-    # seed = quote_plus(q)
-    # return f"https://picsum.photos/seed/{seed}/800/450"
-
 
 # --- Endpoints ---
 @app.post("/api/chat", response_model=ChatResponse, summary="Responder consulta libre", tags=["chat"])
@@ -74,7 +60,7 @@ def chat_api(req: ChatRequest):
     # Guardrails mínimos
     pii_found = detect_pii(req.query)
 
-    # Respuesta sin límite de palabras
+    # Respuesta (multiagente)
     text = safe_answer(req.query)
 
     # Imagen alusiva
